@@ -1,281 +1,196 @@
-import pandas as pd
 import plotly.express as px
+import pandas as pd
 from dash import Dash, Input, Output, dcc, html
+import dash_bootstrap_components as dbc
 
 from src.data_loader import load_cyclone_data
 
 
-REQUIRED_COLUMNS = {
-    "SID",
-    "SEASON",
-    "BASIN",
-    "NAME",
-    "LAT",
-    "LON",
-    "USA_WIND",
-    "WMO_WIND",
-}
 
+from pathlib import Path
+import joblib
 
-def prepare_storm_summary(data: pd.DataFrame) -> pd.DataFrame:
-    missing_columns = REQUIRED_COLUMNS.difference(data.columns)
-    if missing_columns:
-        raise ValueError(
-            "The CSV is missing required IBTrACS columns: "
-            + ", ".join(sorted(missing_columns))
-        )
+PROJECT_ROOT = Path(__file__).resolve().parent
 
-    observations = data[
-        ["SID", "SEASON", "BASIN", "NAME", "LAT", "LON", "USA_WIND", "WMO_WIND"]
-    ].copy()
-    for column in ("SEASON", "LAT", "LON", "USA_WIND", "WMO_WIND"):
-        observations[column] = pd.to_numeric(observations[column], errors="coerce")
-    observations["MAX_WIND_KT"] = observations["USA_WIND"].combine_first(
-        observations["WMO_WIND"]
-    )
+# Locate the saved machine-learning model
+MODEL_PATH = PROJECT_ROOT / "artifacts" / "cyclone_intensity_model.joblib"
 
-    located_observations = observations.dropna(subset=["SID", "SEASON", "LAT", "LON"])
-    wind_observations = located_observations.dropna(subset=["MAX_WIND_KT"])
-    peak_indices = wind_observations.groupby("SID")["MAX_WIND_KT"].idxmax()
-    storms_with_wind = wind_observations.loc[peak_indices]
-    storms_without_wind = located_observations[
-        ~located_observations["SID"].isin(storms_with_wind["SID"])
-    ].drop_duplicates("SID", keep="first")
-    return pd.concat([storms_with_wind, storms_without_wind]).reset_index(drop=True)
+# Load the trained model bundle
+model_bundle = joblib.load(MODEL_PATH)
 
+# Get the trained pipeline and its feature information
+model = model_bundle["model"]
+feature_columns = model_bundle["feature_columns"]
 
-DATA = load_cyclone_data()
-STORMS = prepare_storm_summary(DATA)
-MIN_YEAR = int(STORMS["SEASON"].min())
-MAX_YEAR = int(STORMS["SEASON"].max())
+print("CycloneAI model loaded successfully!")
+print("Model features:", feature_columns)
 
-app = Dash(__name__)
-app.title = "CycloneAI | IBTrACS Explorer"
+# Load historical data
+df = load_cyclone_data()
 
-PAGE_STYLE = {
-    "backgroundColor": "#0b1220",
-    "color": "#e5e7eb",
-    "fontFamily": "Arial, sans-serif",
-    "minHeight": "100vh",
-    "padding": "28px",
-}
-PANEL_STYLE = {
-    "backgroundColor": "#111c2f",
-    "border": "1px solid #26354c",
-    "borderRadius": "12px",
-    "padding": "18px",
-}
-GRAPH_CONFIG = {"displayModeBar": False, "responsive": True}
+df["ISO_TIME"] = pd.to_datetime(df["ISO_TIME"], errors="coerce")
+df["USA_WIND"] = pd.to_numeric(df["USA_WIND"], errors="coerce")
 
-app.layout = html.Main(
-    style=PAGE_STYLE,
-    children=[
-        html.Header(
-            [
-                html.Div(
-                    "IBTrACS DATA EXPLORER",
-                    style={
-                        "color": "#38bdf8",
-                        "fontSize": "12px",
-                        "fontWeight": "bold",
-                        "letterSpacing": "2px",
-                    },
-                ),
-                html.H1("Tropical Cyclone Tracker", style={"margin": "8px 0"}),
-                html.P(
-                    "Explore storm intensity, locations, seasons, and ocean basins.",
-                    style={"color": "#a7b4c8"},
-                ),
-            ],
-            style={"marginBottom": "24px"},
-        ),
-        html.Section(
-            [
-                html.Label("Season range", htmlFor="season-range"),
-                dcc.RangeSlider(
-                    id="season-range",
-                    min=MIN_YEAR,
-                    max=MAX_YEAR,
-                    value=[MIN_YEAR, MAX_YEAR],
-                    marks={year: str(year) for year in range(MIN_YEAR, MAX_YEAR + 1, 5)},
-                    step=1,
-                    tooltip={"placement": "bottom", "always_visible": False},
-                    allowCross=False,
-                ),
-            ],
-            style={**PANEL_STYLE, "marginBottom": "18px", "padding": "20px 24px 30px"},
-        ),
-        html.Section(
-            [
-                html.Div(
-                    [html.Div("STORMS", className="metric-label"), html.H2(id="storm-count")],
-                    style=PANEL_STYLE,
-                ),
-                html.Div(
-                    [
-                        html.Div("STRONGEST WIND", className="metric-label"),
-                        html.H2(id="strongest-wind"),
-                    ],
-                    style=PANEL_STYLE,
-                ),
-                html.Div(
-                    [
-                        html.Div("STRONGEST STORM", className="metric-label"),
-                        html.H2(id="strongest-name"),
-                    ],
-                    style=PANEL_STYLE,
-                ),
-                html.Div(
-                    [
-                        html.Div("YEARS SELECTED", className="metric-label"),
-                        html.H2(id="years-selected"),
-                    ],
-                    style=PANEL_STYLE,
-                ),
-            ],
-            style={
-                "display": "grid",
-                "gridTemplateColumns": "repeat(auto-fit, minmax(180px, 1fr))",
-                "gap": "14px",
-                "marginBottom": "18px",
-            },
-        ),
-        html.Section(
-            [
-                html.Div(
-                    [
-                        html.H3("Peak intensity locations"),
-                        dcc.Graph(id="storm-map", config=GRAPH_CONFIG),
-                    ],
-                    style=PANEL_STYLE,
-                ),
-                html.Div(
-                    [
-                        html.H3("Storms by season"),
-                        dcc.Graph(id="season-chart", config=GRAPH_CONFIG),
-                    ],
-                    style=PANEL_STYLE,
-                ),
-                html.Div(
-                    [
-                        html.H3("Storms by basin"),
-                        dcc.Graph(id="basin-chart", config=GRAPH_CONFIG),
-                    ],
-                    style={**PANEL_STYLE, "gridColumn": "1 / -1"},
-                ),
-            ],
-            style={
-                "display": "grid",
-                "gridTemplateColumns": "repeat(auto-fit, minmax(320px, 1fr))",
-                "gap": "14px",
-            },
-        ),
-        html.Footer(
-            "Source: NOAA/NCEI IBTrACS. Wind values are knots; map points show each storm's strongest recorded observation.",
-            style={"color": "#94a3b8", "fontSize": "12px", "padding": "18px 2px"},
-        ),
-    ],
+map_df = df.dropna(
+    subset=["LAT", "LON", "ISO_TIME"]
+).copy()
+
+map_df["YEAR"] = map_df["ISO_TIME"].dt.year
+
+# Prepare data for the chart
+plot_df = df.dropna(subset=["ISO_TIME", "USA_WIND"]).copy()
+plot_df["YEAR"] = plot_df["ISO_TIME"].dt.year
+
+yearly = (
+    plot_df.groupby("YEAR", as_index=False)["USA_WIND"]
+    .max()
+    .rename(columns={"USA_WIND": "MAX_WIND"})
 )
 
+html.H2(
+    "Global Cyclone Tracking",
+    className="text-info mt-4 mb-3"
+),
+
+dcc.Graph(id="cyclone-map"),
+
+
+# Create the dashboard
+app = Dash(
+    __name__,
+    external_stylesheets=[dbc.themes.CYBORG]
+)
+
+years = sorted(plot_df["YEAR"].dropna().unique())
+
+app.layout = dbc.Container(
+    [
+        html.H1(
+            "CycloneAI | Storm Analytics",
+            className="text-info text-center mt-4"
+        ),
+        
+     # Cyclone intensity prediction form
+      html.H2("Cyclone Intensity Prediction"),
+
+        html.Label("Latitude"),
+        dcc.Input(
+        id="input-lat",
+        type="number",
+        min=-90,
+        max=90,
+        value=15,
+        step=0.1
+    ),
+
+    html.Label("Longitude"),
+    dcc.Input(
+    id="input-lon",
+    type="number",
+    min=-180,
+    max=180,
+    value=75,
+    step=0.1
+),
+
+html.Label("Month (1-12)"),
+dcc.Input(
+    id="input-month",
+    type="number",
+    min=1,
+    max=12,
+    value=7,
+    step=1
+    ),
+
+   html.Label("Pressure (hPa)"),
+    dcc.Input(
+    id="input-pressure",
+    type="number",
+    min=800,
+    max=1100,
+    value=1000,
+    step=1
+    ),
+
+    html.Button("Predict Intensity", id="predict-button", n_clicks=0),
+
+    html.Div(id="prediction-result"),
+
+        html.P(
+            "Historical Tropical Cyclone Data Explorer",
+            className="text-center text-light"
+        ),
+        
+         dbc.Label("Select Year", className="text-info mt-3"),
+        dcc.Dropdown(
+            id="year-filter",
+            options=[
+                {"label": "All Years", "value": "all"}
+            ] + [
+                {"label": str(int(year)), "value": int(year)}
+                for year in years
+            ],
+            value="all",
+            clearable=False,
+            className="mb-4"
+        ),
+        
+        dcc.Graph(id="wind-chart"),
+    ],
+    fluid=True,
+    className="p-4"
+)
 
 @app.callback(
-    Output("storm-count", "children"),
-    Output("strongest-wind", "children"),
-    Output("strongest-name", "children"),
-    Output("years-selected", "children"),
-    Output("storm-map", "figure"),
-    Output("season-chart", "figure"),
-    Output("basin-chart", "figure"),
-    Input("season-range", "value"),
+    Output("wind-chart", "figure"),
+    Input("year-filter", "value")
 )
-def update_dashboard(year_range: list[int]) -> tuple[object, ...]:
-    start_year, end_year = year_range
-    filtered = STORMS[STORMS["SEASON"].between(start_year, end_year)]
-    mapped_storms = filtered.dropna(subset=["MAX_WIND_KT"])
+def update_chart(selected_year):
+    filtered = plot_df.copy()
 
-    if mapped_storms.empty:
-        strongest_wind = "N/A"
-        strongest_name = "No storms"
-        map_figure = px.scatter_geo(template="plotly_dark")
-    else:
-        peak_storm = mapped_storms.loc[mapped_storms["MAX_WIND_KT"].idxmax()]
-        strongest_wind = f"{peak_storm['MAX_WIND_KT']:.0f} kt"
-        strongest_name = str(peak_storm["NAME"])
-        map_figure = px.scatter_geo(
-            mapped_storms,
-            lat="LAT",
-            lon="LON",
-            color="BASIN",
-            size="MAX_WIND_KT",
-            size_max=16,
-            hover_name="NAME",
-            hover_data={
-                "SEASON": True,
-                "MAX_WIND_KT": ":.0f",
-                "LAT": ":.1f",
-                "LON": ":.1f",
-            },
-            projection="natural earth",
-            template="plotly_dark",
-            labels={"MAX_WIND_KT": "Peak wind (kt)", "BASIN": "Basin"},
+    if selected_year != "all":
+        filtered = filtered[
+            filtered["YEAR"] == selected_year
+        ]
+
+# Limit points when all years are selected
+    if selected_year == "all" and len(filtered) > 5000:
+        filtered = filtered.sample(
+            n=5000,
+            random_state=42
         )
-    map_figure.update_layout(
-        height=510,
-        margin={"l": 0, "r": 0, "t": 10, "b": 0},
-        legend_title_text="Basin",
-    )
-    storm_count = f"{filtered['SID'].nunique():,}"
-    if filtered.empty:
-        storm_count = "0"
-        strongest_name = "No storms"
-
-    season_counts = (
-        filtered.groupby("SEASON")["SID"]
-        .nunique()
-        .rename("Storms")
-        .reset_index()
-    )
-    season_figure = px.line(
-        season_counts,
-        x="SEASON",
-        y="Storms",
-        markers=True,
-        template="plotly_dark",
-        labels={"SEASON": "Season", "Storms": "Storms"},
-    )
-    season_figure.update_layout(height=350, margin={"l": 10, "r": 10, "t": 10, "b": 10})
-
-    basin_counts = (
-        filtered.groupby("BASIN")["SID"]
-        .nunique()
-        .sort_values(ascending=True)
-        .rename("Storms")
-        .reset_index()
-    )
-    basin_figure = px.bar(
-        basin_counts,
-        x="BASIN",
-        y="Storms",
-        color="BASIN",
-        template="plotly_dark",
-        labels={"BASIN": "Basin", "Storms": "Storms"},
-    )
-    basin_figure.update_layout(
-        height=320,
-        showlegend=False,
-        margin={"l": 10, "r": 10, "t": 10, "b": 10},
+        
+        fig = px.scatter_geo(
+        filtered,
+        lat="LAT",
+        lon="LON",
+        color="USA_WIND",
+        hover_name="NAME",
+        hover_data={
+            "ISO_TIME": True,
+            "USA_WIND": True,
+            "LAT": True,
+            "LON": True
+        },
+        color_continuous_scale="Turbo",
+        projection="natural earth",
+        title="Historical Cyclone Observation Locations",
+        labels={"USA_WIND": "Wind (knots)"},
+        template="plotly_dark"
     )
 
-    return (
-        storm_count,
-        strongest_wind,
-        strongest_name,
-        f"{start_year}–{end_year}",
-        map_figure,
-        season_figure,
-        basin_figure,
+    fig.update_layout(
+        title_x=0.5,
+        geo=dict(
+            showland=True,
+            landcolor="#172536",
+            showocean=True,
+            oceancolor="#081522"
+        )
     )
 
+    return fig
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=True)
