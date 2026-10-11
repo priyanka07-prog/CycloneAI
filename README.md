@@ -37,6 +37,9 @@ Open the local URL printed by Dash (normally
 `http://127.0.0.1:8050`) in your browser. The first start reads the full CSV, so
 it may take a little while.
 
+The trained model is stored with Git LFS. Install Git LFS before cloning, then
+run `git lfs pull` in the project folder to download the model.
+
 ## Sharing with collaborators
 
 Push the source code to GitHub, but keep the large CSV out of ordinary Git
