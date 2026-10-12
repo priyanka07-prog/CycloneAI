@@ -7,12 +7,15 @@ import pandas as pd
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import classification_report, accuracy_score
+from sklearn.metrics import classification_report, accuracy_score, f1_score, recall_score
+
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
 from sklearn.model_selection import GroupShuffleSplit
 from sklearn.pipeline import Pipeline
 
 from data_loader import load_cyclone_data
-
+from matplotlib import pyplot as plt
 
 # 1. Load the historical dataset
 df = load_cyclone_data()
@@ -122,6 +125,42 @@ print(classification_report(
     predictions,
     zero_division=0,
 ))
+
+
+# Predict cyclone intensity classes for the test data
+y_pred = model.predict(X_test)
+
+# Calculate model performance metrics
+accuracy = accuracy_score(y_test, y_pred)
+macro_f1 = f1_score(y_test, y_pred, average="macro")
+
+recalls = recall_score(
+    y_test,
+    y_pred,
+    labels=model.classes_,
+    average=None,
+    zero_division=0,
+)
+
+print(f"Accuracy: {accuracy:.3f}")
+print(f"Macro F1-score: {macro_f1:.3f}")
+
+for class_name, recall in zip(model.classes_, recalls):
+    print(f"{class_name} recall: {recall:.3f}")
+
+# Create the confusion matrix
+cm = confusion_matrix(y_test, y_pred, labels=model.classes_)
+
+# Display the confusion matrix
+disp = ConfusionMatrixDisplay(
+    confusion_matrix=cm,
+    display_labels=model.classes_
+)
+
+disp.plot(xticks_rotation=30)
+plt.title("CycloneAI - Confusion Matrix")
+plt.tight_layout()
+plt.show()
 
 # 8. Save the trained model
 project_root = Path(__file__).resolve().parents[1]
