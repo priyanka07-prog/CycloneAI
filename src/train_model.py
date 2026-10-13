@@ -1,6 +1,6 @@
 
 from pathlib import Path
-
+import json
 import joblib
 import numpy as np
 import pandas as pd
@@ -147,10 +147,69 @@ print(f"Macro F1-score: {macro_f1:.3f}")
 
 for class_name, recall in zip(model.classes_, recalls):
     print(f"{class_name} recall: {recall:.3f}")
+    
+# Save evaluation metrics for the dashboard
+project_root = Path(__file__).resolve().parent.parent
+artifacts_dir = project_root / "artifacts"
+artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+metrics = {
+    "accuracy": float(accuracy),
+    "macro_f1": float(macro_f1),
+    "recall_by_class": {
+        str(label): float(score)
+        for label, score in zip(model.classes_, recalls)
+    },
+}
+
+metrics_path = artifacts_dir / "model_metrics.json"
+
+with open(metrics_path, "w", encoding="utf-8") as file:
+    json.dump(metrics, file, indent=4)
+
+print(f"Metrics saved to: {metrics_path}")
+
 
 # Create the confusion matrix
-cm = confusion_matrix(y_test, y_pred, labels=model.classes_)
+cm = confusion_matrix( y_test,y_pred,labels=model.classes_)
 
+# Create the artifacts folder if needed
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
+ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+
+# Calculate evaluation metrics
+accuracy = accuracy_score(y_test, y_pred)
+
+report = classification_report(
+    y_test,
+    y_pred,
+    output_dict=True,
+    zero_division=0
+)
+
+cm = confusion_matrix(
+    y_test,
+    y_pred,
+    labels=model.classes_
+)
+
+# Save classification report
+with open(ARTIFACTS_DIR / "classification_report.json", "w") as file:
+    json.dump(report, file, indent=4)
+
+# Save confusion matrix
+pd.DataFrame(
+    cm,
+    index=model.classes_,
+    columns=model.classes_
+).to_csv(ARTIFACTS_DIR / "confusion_matrix.csv")
+
+# Save summary metrics
+with open(ARTIFACTS_DIR / "model_metrics.json", "w") as file:
+    json.dump({"accuracy": accuracy}, file, indent=4)
+
+print("Evaluation results saved successfully!")
 # Display the confusion matrix
 disp = ConfusionMatrixDisplay(
     confusion_matrix=cm,

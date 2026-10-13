@@ -30,62 +30,56 @@ years = sorted(plot_df["YEAR"].dropna().unique())
 
 app.layout = dbc.Container(
     [
-        html.H1(
-            "CycloneAI | Storm Analytics",
-            className="text-info text-center mt-4",
-        ),
-        
-html.H2("Model Performance", className="text-info mt-4"),
-
-dbc.Row(
-    [
-        dbc.Col(
-            dbc.Card(
-                dbc.CardBody(
-                    [
-                        html.H5("Accuracy"),
-                        html.H3("86.4%", className="text-info"),
-                        html.P("Overall correct predictions"),
-                    ]
+        html.H1("CycloneAI | Storm Analytics", className="text-info text-center mt-4"),
+        html.H2("Model Performance", className="text-info mt-4"),
+        dbc.Row(
+            [
+                dbc.Col(
+                    dbc.Card(
+                        dbc.CardBody(
+                            [
+                                html.H5("Accuracy"),
+                                html.H3("86.4%", className="text-info"),
+                                html.P("Overall correct predictions"),
+                            ]
+                        ),
+                        color="dark",
+                        inverse=True,
+                    ),
+                    md=4,
                 ),
-                color="dark",
-                inverse=True,
-            ),
-            md=4,
-        ),
-        dbc.Col(
-            dbc.Card(
-                dbc.CardBody(
-                    [
-                        html.H5("Macro F1-score"),
-                        html.H3("0.87", className="text-info"),
-                        html.P("Balanced performance across classes"),
-                    ]
+                dbc.Col(
+                    dbc.Card(
+                        dbc.CardBody(
+                            [
+                                html.H5("Macro F1-score"),
+                                html.H3("0.87", className="text-info"),
+                                html.P("Balanced performance across classes"),
+                            ]
+                        ),
+                        color="dark",
+                        inverse=True,
+                    ),
+                    md=4,
                 ),
-                color="dark",
-                inverse=True,
-            ),
-            md=4,
-        ),
-        dbc.Col(
-            dbc.Card(
-                dbc.CardBody(
-                    [
-                        html.H5("Test observations"),
-                        html.H3("24,639", className="text-info"),
-                        html.P("Held-out observations evaluated"),
-                    ]
+                dbc.Col(
+                    dbc.Card(
+                        dbc.CardBody(
+                            [
+                                html.H5("Test observations"),
+                                html.H3("24,639", className="text-info"),
+                                html.P("Held-out observations evaluated"),
+                            ]
+                        ),
+                        color="dark",
+                        inverse=True,
+                    ),
+                    md=4,
                 ),
-                color="dark",
-                inverse=True,
-            ),
-            md=4,
+            ],
+            className="g-3 mb-4",
         ),
-    ],
-    className="g-3 mb-4",
-),
-
-        html.H2("Cyclone Intensity Prediction"),
+        html.H2("Cyclone Intensity Prediction", className="text-info mt-4 mb-3"),
         html.Label("Latitude"),
         dcc.Input(
             id="input-lat",
@@ -131,9 +125,7 @@ dbc.Row(
         dbc.Label("Select Year", className="text-info mt-3"),
         dcc.Dropdown(
             id="year-filter",
-            options=[
-                {"label": "All Years", "value": "all"}
-            ] + [
+            options=[{"label": "All Years", "value": "all"}] + [
                 {"label": str(int(year)), "value": int(year)}
                 for year in years
             ],
@@ -145,7 +137,7 @@ dbc.Row(
         dcc.Graph(id="wind-chart"),
     ],
     fluid=True,
-    className="p-4"
+    className="p-4",
 )
 
 @app.callback(
