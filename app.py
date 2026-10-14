@@ -8,6 +8,49 @@ from dash import Dash, Input, Output, State, dcc, html
 from sklearn.metrics import accuracy_score, f1_score, recall_score
 from src.data_loader import load_cyclone_data
 
+
+def style_cyclone_chart(fig, title=None):
+    fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor="#080b14",
+        plot_bgcolor="#101525",
+        font=dict(
+            family="Inter, Arial, sans-serif",
+            color="#dbe4f0",
+            size=12,
+        ),
+        title=dict(
+            text=title if title else "",
+            font=dict(size=20, color="#c084fc"),
+            x=0.02,
+            xanchor="left",
+        ),
+        margin=dict(l=25, r=25, t=65, b=25),
+        hoverlabel=dict(
+            bgcolor="#151d32",
+            bordercolor="#a855f7",
+            font=dict(color="#ffffff", size=13),
+        ),
+        legend=dict(
+            bgcolor="rgba(16, 21, 37, 0.75)",
+            bordercolor="#29334d",
+            borderwidth=1,
+        ),
+    )
+
+    fig.update_xaxes(
+        showgrid=True,
+        gridcolor="rgba(148, 163, 184, 0.12)",
+        zeroline=False,
+    )
+    fig.update_yaxes(
+        showgrid=True,
+        gridcolor="rgba(148, 163, 184, 0.12)",
+        zeroline=False,
+    )
+
+    return fig
+
 PROJECT_ROOT = Path(__file__).resolve().parent
 
 MODEL_PATH = PROJECT_ROOT / "artifacts" / "cyclone_intensity_model.joblib"
@@ -185,9 +228,7 @@ def update_chart(selected_year):
     filtered = plot_df.copy()
 
     if selected_year != "all":
-        filtered = filtered[
-            filtered["YEAR"] == selected_year
-        ]
+        filtered = filtered[filtered["YEAR"] == int(selected_year)]
 
     if selected_year == "all" and len(filtered) > 5000:
         filtered = filtered.sample(n=5000, random_state=42)
@@ -207,21 +248,121 @@ def update_chart(selected_year):
         color_continuous_scale="Turbo",
         projection="natural earth",
         title="Historical Cyclone Observation Locations",
-        labels={"USA_WIND": "Wind (knots)"},
+        labels={
+            "USA_WIND": "Wind speed (knots)",
+            "ISO_TIME": "Observation time",
+            "LAT": "Latitude",
+            "LON": "Longitude",
+        },
         template="plotly_dark",
     )
 
+    fig.update_traces(
+        marker=dict(
+            size=5,
+            opacity=0.8,
+            line=dict(width=0.4, color="#e2e8f0"),
+        ),
+        hovertemplate=(
+            "<b>%{hovertext}</b><br>"
+            "Wind: %{marker.color:.1f} knots<br>"
+            "Latitude: %{lat:.2f}<br>"
+            "Longitude: %{lon:.2f}"
+            "<extra></extra>"
+        ),
+    )
+
+    fig = style_cyclone_chart(
+        fig,
+        title="Global Historical Cyclone Observations",
+    )
+
     fig.update_layout(
+        height=580,
         title_x=0.5,
         geo=dict(
             showland=True,
             landcolor="#172536",
             showocean=True,
             oceancolor="#081522",
+            showcountries=True,
+            countrycolor="#334155",
+            showcoastlines=True,
+            coastlinecolor="#475569",
+            showframe=False,
+            projection_type="natural earth",
+        ),
+        coloraxis_colorbar=dict(
+            title="Wind<br>(knots)",
+            tickfont=dict(color="#dbe4f0"),
+            title_font=dict(color="#dbe4f0"),
+            bgcolor="#101525",
+            outlinewidth=0,
+        ),
+    )
+
+    fig.update_traces(
+        marker=dict(
+            size=6,
+            opacity=0.9,
+            line=dict(width=0.5, color="#e2e8f0"),
+        ),
+        selector=dict(type="scattergeo"),
+    )
+
+    fig.update_layout(
+        height=650,
+        paper_bgcolor="#080b14",
+        font=dict(
+            family="Arial, sans-serif",
+            color="#e2e8f0",
+            size=13,
+        ),
+        margin=dict(l=10, r=20, t=75, b=15),
+        title=dict(
+            text="GLOBAL CYCLONE OBSERVATIONS",
+            x=0.03,
+            xanchor="left",
+            font=dict(size=21, color="#c084fc"),
+        ),
+        coloraxis=dict(
+            cmin=0,
+            cmax=150,
+            colorscale=[
+                [0.0, "#38bdf8"],
+                [0.35, "#22c55e"],
+                [0.65, "#facc15"],
+                [1.0, "#f43f5e"],
+            ],
+            colorbar=dict(
+                title=dict(text="Wind (knots)", font=dict(color="#e2e8f0")),
+                tickfont=dict(color="#e2e8f0"),
+                bgcolor="#101525",
+                outlinewidth=0,
+                thickness=15,
+                len=0.75,
+            ),
+        ),
+        geo=dict(
+            projection=dict(type="natural earth", scale=1.05),
+            bgcolor="#080b14",
+            showland=True,
+            landcolor="#26364b",
+            showocean=True,
+            oceancolor="#07111f",
+            showcountries=True,
+            countrycolor="#52647a",
+            showcoastlines=True,
+            coastlinecolor="#8ba1b8",
+            coastlinewidth=0.7,
+            showframe=False,
+            showlakes=True,
+            lakecolor="#07111f",
         ),
     )
 
     return fig
+
 
 if __name__ == "__main__":
     app.run(debug=True, use_reloader=False)

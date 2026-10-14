@@ -1,0 +1,74 @@
+
+/* ===== CycloneAI: Modern Dashboard Theme ===== */
+
+body {
+    background-color: #080b14 !important;
+    color: #e8edf8 !important;
+}
+
+/* Dashboard cards */
+.card {
+    background: linear-gradient(145deg, #151d32, #101525) !important;
+    border: 1px solid rgba(168, 85, 247, 0.35) !important;
+    border-radius: 16px !important;
+    color: #e8edf8 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s ease, border-color 0.2s ease;
+    overflow: hidden;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    border-color: #a855f7 !important;
+}
+
+/* Card headings */
+.card h5 {
+    color: #cbd5e1 !important;
+    font-weight: 500;
+    margin-bottom: 12px;
+}
+
+/* Highlighted metric values */
+.card h3,
+.text-info {
+    color: #c084fc !important;
+    font-weight: 700;
+}
+
+/* Card descriptions */
+.card p {
+    color: #94a3b8 !important;
+    font-size: 0.95rem;
+}
+
+/* Section headings */
+h1, h2, h3 {
+    color: #c084fc;
+}
+
+/* Inputs */
+.form-control,
+input {
+    border-radius: 8px !important;
+}
+
+/* Buttons */
+.btn {
+    border-radius: 9px !important;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background: linear-gradient(90deg, #7c3aed, #9333ea) !important;
+    border: none !important;
+}
+
+.btn-primary:hover {
+    filter: brightness(1.15);
+}
+
+/* Consistent spacing */
+.card-body {
+    padding: 24px !important;
+}
